@@ -17,33 +17,49 @@
 ////////////////////////////////////////////////////////////////////////////
 
 using System;
+using System.Diagnostics;
+
 namespace Realms
 {
     public class Migration
     {
+        private readonly Realm oldRealm;
+        private readonly Realm newRealm;
+
         public delegate void EnumerationDelegate<T>(dynamic oldObject, T newObject) where T : RealmObject;
 
         public void Enumerate<T>(EnumerationDelegate<T> enumerator) where T : RealmObject
         {
+            var oldItems = oldRealm.All<T>();
+            var newItems = newRealm.All<T>();
+
+            var count = newItems.Count();
+            Debug.Assert(oldItems.Count() == count);
+
+            for (var i = 0; i < count; i++)
+            {
+                enumerator(oldItems[i], newItems[i]);
+            }
         }
 
         public void RenameProperty<T>(string oldName, string newName) where T : RealmObject
         {
+            throw new NotImplementedException();
         }
 
-        public void RemoveObject(RealmObject obj)
+        public void Remove(RealmObject obj)
         {
-            
+            newRealm.Remove(obj);
         }
 
         public void RemoveAll<T>() where T : RealmObject
         {
-            
+            newRealm.RemoveAll<T>();
         }
 
         public T CreateObject<T>() where T : RealmObject, new()
         {
-            return default(T);
+            return newRealm.CreateObject<T>();
         }
     }
 }
