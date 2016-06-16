@@ -141,12 +141,22 @@ namespace Realms
             var durability = MarshalHelpers.BoolToIntPtr(false);
             var databasePath = config.DatabasePath;
             IntPtr srPtr = IntPtr.Zero;
+
+            NativeSharedRealm.MigrationCallbackDelegate migrationCallback = null;
+            IntPtr migrationCallbackData = IntPtr.Zero;
+            if (config.MigrationCallback != null)
+            {
+                migrationCallback = NativeMigrationCallback;
+                migrationCallbackData = GCHandle.ToIntPtr(GCHandle.Alloc(config.MigrationCallback));
+            }
+
             try {
                 srPtr = NativeSharedRealm.open(schemaHandle, 
                     databasePath, (IntPtr)databasePath.Length, 
                     readOnly, durability, 
                     config.EncryptionKey,
-                    config.SchemaVersion);
+                    config.SchemaVersion,
+                    migrationCallback, migrationCallbackData);
             } catch (RealmMigrationNeededException) {
                 if (config.ShouldDeleteIfMigrationNeeded)
                 {
@@ -163,7 +173,8 @@ namespace Realms
                     databasePath, (IntPtr)databasePath.Length, 
                     readOnly, durability, 
                     config.EncryptionKey,
-                    config.SchemaVersion);
+                    config.SchemaVersion,
+                    migrationCallback, migrationCallbackData);
             }
 
             RuntimeHelpers.PrepareConstrainedRegions();
@@ -174,8 +185,17 @@ namespace Realms
             }
 
             return new Realm(srHandle, config);
-        } 
+        }
 
+        #if __IOS__
+        [MonoPInvokeCallback(typeof(NativeSharedRealm.MigrationCallbackDelegate))]
+        #endif
+        private static void NativeMigrationCallback(SharedRealmHandle oldRealm, SharedRealmHandle newRealm, UInt64 oldSchemaVersion, IntPtr data)
+        {
+            var managedCallbackDelegate = (RealmConfiguration.MigrationCallbackDelegate)GCHandle.FromIntPtr(data).Target;
+
+            managedCallbackDelegate(new Migration(), oldSchemaVersion);
+        }
 
         private static IntPtr GenerateObjectSchema(Type objectClass)
         {           

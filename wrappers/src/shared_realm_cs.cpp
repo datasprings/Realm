@@ -59,8 +59,10 @@ REALM_EXPORT void register_notify_realm_changed(NotifyRealmChangedT notifier)
     notify_realm_changed = notifier;
 }
 
+typedef void (MigrationCallbackDelegate)(SharedRealm* oldRealm, SharedRealm* newRealm, uint64_t oldSchemaVersion, void* data);
+
 REALM_EXPORT SharedRealm* shared_realm_open(Schema* schema, uint16_t* path, size_t path_len, bool read_only, SharedGroup::DurabilityLevel durability,
-                        uint8_t* encryption_key, uint64_t schemaVersion)
+                                            uint8_t* encryption_key, uint64_t schemaVersion, MigrationCallbackDelegate migrationCallback, void* migrationCallbackData)
 {
     return handle_errors([&]() {
         Utf16StringAccessor pathStr(path, path_len);
@@ -78,6 +80,12 @@ REALM_EXPORT SharedRealm* shared_realm_open(Schema* schema, uint16_t* path, size
 
         config.schema.reset(schema);
         config.schema_version = schemaVersion;
+
+        if (migrationCallback) {
+            config.migration_function = [=](SharedRealm old, SharedRealm current) {
+                migrationCallback(new SharedRealm(old), new SharedRealm(current), old->config().schema_version, migrationCallbackData);
+            };
+        }
 
         return new SharedRealm{Realm::get_shared_realm(config)};
     });

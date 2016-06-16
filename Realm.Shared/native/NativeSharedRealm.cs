@@ -23,9 +23,11 @@ namespace Realms
 {
     internal static class NativeSharedRealm
     {
+        internal delegate void MigrationCallbackDelegate(SharedRealmHandle oldRealm, SharedRealmHandle newRealm, UInt64 oldSchemaVersion, IntPtr data);
+
         [DllImport(InteropConfig.DLL_NAME, EntryPoint = "shared_realm_open", CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr open(SchemaHandle schemaHandle, [MarshalAs(UnmanagedType.LPWStr)]string path, IntPtr pathLength, IntPtr readOnly,
-            IntPtr durability, byte[] encryptionKey, UInt64 schemaVersion);
+                                           IntPtr durability, byte[] encryptionKey, UInt64 schemaVersion, MigrationCallbackDelegate migrationCallback, IntPtr migrationCallbackData);
 
         [DllImport(InteropConfig.DLL_NAME, EntryPoint = "shared_realm_bind_to_managed_realm_handle", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void bind_to_managed_realm_handle(SharedRealmHandle sharedRealm, IntPtr managedRealmHandle);
